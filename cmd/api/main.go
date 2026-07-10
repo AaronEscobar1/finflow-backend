@@ -113,21 +113,29 @@ func main() {
 	notifRepo := repository.NewNotificationRepository(pool)
 
 	// Inicializar FCM Push Service
-	firebaseCredsFile := os.Getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
-	if firebaseCredsFile == "" {
-		firebaseCredsFile = "firebase-service-account.json"
+	firebaseCreds := os.Getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+	if firebaseCreds == "" {
+		firebaseCreds = "firebase-service-account.json"
 	}
 
 	var pushSrv domain.PushService
 	var pushErr error
-	if _, err := os.Stat(firebaseCredsFile); err == nil {
-		pushSrv, pushErr = push.NewFirebasePushService(firebaseCredsFile)
+	isJSON := strings.HasPrefix(strings.TrimSpace(firebaseCreds), "{")
+
+	if isJSON {
+		pushSrv, pushErr = push.NewFirebasePushService(firebaseCreds)
 		if pushErr != nil {
-			slog.Error("Fallo al inicializar Firebase Push Notifications, usando mock como fallback", "error", pushErr)
+			slog.Error("Fallo al inicializar Firebase Push Notifications con JSON, usando mock como fallback", "error", pushErr)
+			pushSrv = push.NewMockPushService()
+		}
+	} else if _, err := os.Stat(firebaseCreds); err == nil {
+		pushSrv, pushErr = push.NewFirebasePushService(firebaseCreds)
+		if pushErr != nil {
+			slog.Error("Fallo al inicializar Firebase Push Notifications con archivo, usando mock como fallback", "error", pushErr)
 			pushSrv = push.NewMockPushService()
 		}
 	} else {
-		slog.Warn("Archivo de credenciales de Firebase no encontrado, usando mock para notificaciones push", "ruta", firebaseCredsFile)
+		slog.Warn("Archivo de credenciales de Firebase no encontrado ni es JSON válido, usando mock para notificaciones push", "ruta/valor", firebaseCreds)
 		pushSrv = push.NewMockPushService()
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/messaging"
@@ -14,8 +15,14 @@ type FirebasePushService struct {
 	client *messaging.Client
 }
 
-func NewFirebasePushService(credentialsFile string) (*FirebasePushService, error) {
-	opt := option.WithCredentialsFile(credentialsFile)
+func NewFirebasePushService(credsOrFile string) (*FirebasePushService, error) {
+	var opt option.ClientOption
+	if strings.HasPrefix(strings.TrimSpace(credsOrFile), "{") {
+		opt = option.WithCredentialsJSON([]byte(credsOrFile))
+	} else {
+		opt = option.WithCredentialsFile(credsOrFile)
+	}
+
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
 		return nil, fmt.Errorf("error al inicializar firebase app: %w", err)
