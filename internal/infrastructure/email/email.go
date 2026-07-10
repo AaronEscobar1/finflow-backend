@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/AaronEscobar1/common/mailer"
+	"github.com/AaronEscobar1/common-go/mailer"
 	"github.com/aaron/finflow-backend/internal/domain"
 )
 

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/AaronEscobar1/common/middleware"
-	"github.com/AaronEscobar1/common/response"
+	"github.com/AaronEscobar1/common-go/middleware"
+	"github.com/AaronEscobar1/common-go/response"
 	"github.com/aaron/finflow-backend/internal/domain"
 	"github.com/aaron/finflow-backend/internal/usecase"
 )

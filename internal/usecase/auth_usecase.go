@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AaronEscobar1/common/middleware"
-	"github.com/AaronEscobar1/common/oauth"
-	"github.com/AaronEscobar1/common/otp"
-	"github.com/AaronEscobar1/common/security"
+	"github.com/AaronEscobar1/common-go/middleware"
+	"github.com/AaronEscobar1/common-go/oauth"
+	"github.com/AaronEscobar1/common-go/otp"
+	"github.com/AaronEscobar1/common-go/security"
 	"github.com/aaron/finflow-backend/internal/domain"
 	"github.com/golang-jwt/jwt/v5"
 )
