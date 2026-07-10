@@ -1,0 +1,13 @@
+*.exe
+*.exe~
+/tmp/
+/bin/
+finflow-backend
+.env
+.env.local
+*.log
+docs/swagger.json
+docs/swagger.yaml
+.repo-map.xml
+.repo-map.stamp
+firebase-service-account.json
