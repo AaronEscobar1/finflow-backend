@@ -143,7 +143,7 @@ func main() {
 	accountUseCase := usecase.NewAccountUseCase(accountRepo)
 	categoryUseCase := usecase.NewCategoryUseCase(categoryRepo)
 	txUseCase := usecase.NewTransactionUseCase(txRepo, accountRepo, categoryRepo)
-	debtUseCase := usecase.NewDebtUseCase(debtRepo)
+	debtUseCase := usecase.NewDebtUseCase(debtRepo, txRepo, categoryRepo, accountRepo)
 	budgetUseCase := usecase.NewBudgetUseCase(budgetRepo, categoryRepo)
 	notifUseCase := usecase.NewNotificationUseCase(notifRepo, pushSrv)
 

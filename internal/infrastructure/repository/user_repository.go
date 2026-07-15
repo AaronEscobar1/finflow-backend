@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/aaron/finflow-backend/internal/domain"
@@ -98,24 +100,50 @@ func (r *UserRepository) UpdateProfile(ctx context.Context, userID int64, req do
 		req.FullName, req.AvatarURL, req.PreferredCurrency, req.PreferredLanguage, req.ThemePreference))
 }
 
+type categoryConfig struct {
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	IconKey string `json:"icon_key"`
+	Color   string `json:"color"`
+}
+
 // seedDefaultsTx siembra las categorías por defecto y la cuenta "Efectivo" dentro de una transacción existente.
 func seedDefaultsTx(ctx context.Context, tx pgx.Tx, userID int64, currency string) error {
-	type cat struct {
-		name string
-		typ  string
+	var categories []categoryConfig
+
+	// Intentar leer de security.system_configs
+	var configJSON []byte
+	err := tx.QueryRow(ctx, "SELECT value FROM security.system_configs WHERE key = 'default_categories'").Scan(&configJSON)
+	if err == nil {
+		if errUnmarshal := json.Unmarshal(configJSON, &categories); errUnmarshal != nil {
+			slog.Warn("No se pudo deserializar JSON de categorías por defecto de la base de datos, usando fallback", "error", errUnmarshal)
+			categories = nil
+		}
+	} else {
+		slog.Warn("No se pudo leer la tabla security.system_configs para categorías, usando fallback", "error", err)
 	}
-	defaults := []cat{
-		{"Salario", "income"}, {"Ventas", "income"}, {"Otros", "income"},
-		{"Alimentación", "expense"}, {"Transporte", "expense"}, {"Ocio", "expense"},
-		{"Servicios", "expense"}, {"Otros", "expense"},
-	}
-	for _, c := range defaults {
-		if _, err := tx.Exec(ctx,
-			"INSERT INTO finance.categories (user_id, name, type) VALUES ($1, $2, $3)",
-			userID, c.name, c.typ); err != nil {
-			return fmt.Errorf("error al sembrar categoría %s: %w", c.name, err)
+
+	// Fallback si falló la base de datos o el unmarshal
+	if len(categories) == 0 {
+		categories = []categoryConfig{
+			{Name: "Salario", Type: "income", IconKey: "salary", Color: "#16A34A"},
+			{Name: "Ventas", Type: "income", IconKey: "sales", Color: "#0EA5E9"},
+			{Name: "Alimentación", Type: "expense", IconKey: "food", Color: "#F97316"},
+			{Name: "Servicios", Type: "expense", IconKey: "services", Color: "#3B82F6"},
+			{Name: "Salud", Type: "expense", IconKey: "health", Color: "#EF4444"},
+			{Name: "Transporte", Type: "expense", IconKey: "transport", Color: "#EAB308"},
+			{Name: "Hogar", Type: "expense", IconKey: "home", Color: "#A855F7"},
 		}
 	}
+
+	for _, c := range categories {
+		if _, err := tx.Exec(ctx,
+			"INSERT INTO finance.categories (user_id, name, type, icon_key, color) VALUES ($1, $2, $3, $4, $5)",
+			userID, c.Name, c.Type, c.IconKey, c.Color); err != nil {
+			return fmt.Errorf("error al sembrar categoría %s: %w", c.Name, err)
+		}
+	}
+
 	if _, err := tx.Exec(ctx,
 		"INSERT INTO finance.accounts (user_id, name, type, currency) VALUES ($1, 'Efectivo', 'cash', $2)",
 		userID, currency); err != nil {

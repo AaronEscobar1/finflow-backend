@@ -35,6 +35,7 @@ func (r *TransactionRepository) scanTransaction(row pgx.Row) (*domain.Transactio
 		&t.InputInBs,
 		&t.RateType,
 		&t.RateValue,
+		&t.DebtID,
 		&t.CreatedAt,
 		&t.UpdatedAt,
 		&t.DeletedAt,
@@ -50,17 +51,17 @@ func (r *TransactionRepository) scanTransaction(row pgx.Row) (*domain.Transactio
 
 func (r *TransactionRepository) Create(ctx context.Context, userID int64, req domain.CreateTransactionRequest, date time.Time) (*domain.Transaction, error) {
 	const q = `
-		INSERT INTO finance.transactions (user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		RETURNING id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, created_at, updated_at, deleted_at`
+		INSERT INTO finance.transactions (user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, debt_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		RETURNING id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, debt_id, created_at, updated_at, deleted_at`
 	return r.scanTransaction(r.pool.QueryRow(ctx, q,
-		userID, req.AccountID, req.Amount, req.Type, req.CategoryID, req.Currency, req.Description, date, req.InputInBs, req.RateType, req.RateValue,
+		userID, req.AccountID, req.Amount, req.Type, req.CategoryID, req.Currency, req.Description, date, req.InputInBs, req.RateType, req.RateValue, req.DebtID,
 	))
 }
 
 func (r *TransactionRepository) FindByID(ctx context.Context, id int64) (*domain.Transaction, error) {
 	const q = `
-		SELECT id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, created_at, updated_at, deleted_at
+		SELECT id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, debt_id, created_at, updated_at, deleted_at
 		FROM finance.transactions
 		WHERE id = $1`
 	return r.scanTransaction(r.pool.QueryRow(ctx, q, id))
@@ -127,7 +128,7 @@ func (r *TransactionRepository) FindByUser(ctx context.Context, userID int64, fi
 	}
 
 	q := fmt.Sprintf(`
-		SELECT id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, created_at, updated_at, deleted_at
+		SELECT id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, debt_id, created_at, updated_at, deleted_at
 		FROM finance.transactions
 		WHERE %s
 		ORDER BY date DESC, created_at DESC%s`, whereClause, limitOffset)
@@ -209,6 +210,15 @@ func (r *TransactionRepository) Update(ctx context.Context, id int64, req domain
 		args = append(args, *req.RateValue)
 		idx++
 	}
+	if req.DebtID != nil {
+		sets = append(sets, fmt.Sprintf("debt_id = $%d", idx))
+		if *req.DebtID == 0 {
+			args = append(args, nil)
+		} else {
+			args = append(args, *req.DebtID)
+		}
+		idx++
+	}
 
 	if len(sets) == 0 {
 		return r.FindByID(ctx, id)
@@ -219,7 +229,7 @@ func (r *TransactionRepository) Update(ctx context.Context, id int64, req domain
 		UPDATE finance.transactions
 		SET %s
 		WHERE id = $%d AND deleted_at IS NULL
-		RETURNING id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, created_at, updated_at, deleted_at`,
+		RETURNING id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, debt_id, created_at, updated_at, deleted_at`,
 		strings.Join(sets, ", "), idx)
 
 	return r.scanTransaction(r.pool.QueryRow(ctx, q, args...))
@@ -265,6 +275,18 @@ func (r *TransactionRepository) PermanentDelete(ctx context.Context, id int64) e
 	}
 	if tag.RowsAffected() == 0 {
 		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *TransactionRepository) DeleteByDebtID(ctx context.Context, debtID int64) error {
+	const q = `
+		UPDATE finance.transactions
+		SET deleted_at = now()
+		WHERE debt_id = $1 AND deleted_at IS NULL`
+	_, err := r.pool.Exec(ctx, q, debtID)
+	if err != nil {
+		return fmt.Errorf("error al eliminar transacciones de deuda: %w", err)
 	}
 	return nil
 }

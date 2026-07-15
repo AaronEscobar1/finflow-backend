@@ -18,6 +18,7 @@ type Transaction struct {
 	InputInBs   bool       `json:"input_in_bs"`
 	RateType    *string    `json:"rate_type"`
 	RateValue   float64    `json:"rate_value"`
+	DebtID      *int64     `json:"debt_id,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
@@ -34,6 +35,7 @@ type CreateTransactionRequest struct {
 	InputInBs   bool    `json:"input_in_bs"`
 	RateType    *string `json:"rate_type"`
 	RateValue   float64 `json:"rate_value"`
+	DebtID      *int64  `json:"debt_id,omitempty"`
 }
 
 type UpdateTransactionRequest struct {
@@ -47,6 +49,7 @@ type UpdateTransactionRequest struct {
 	InputInBs   *bool    `json:"input_in_bs,omitempty"`
 	RateType    *string  `json:"rate_type,omitempty"`
 	RateValue   *float64 `json:"rate_value,omitempty"`
+	DebtID      *int64   `json:"debt_id,omitempty"`
 }
 
 type TransactionFilter struct {
@@ -87,6 +90,7 @@ type TransactionRepository interface {
 	SoftDelete(ctx context.Context, id int64) error
 	Restore(ctx context.Context, id int64) error
 	PermanentDelete(ctx context.Context, id int64) error
+	DeleteByDebtID(ctx context.Context, debtID int64) error
 	GetSummary(ctx context.Context, userID int64, from, to *time.Time) (*TransactionSummary, error)
 	GetByCategory(ctx context.Context, userID int64, from, to *time.Time, txType *string) ([]CategoryAnalytics, error)
 }

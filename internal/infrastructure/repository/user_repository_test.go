@@ -62,8 +62,8 @@ func TestUserRepository_CreateFindSeed(t *testing.T) {
 	var catCount, accCount int
 	pool.QueryRow(ctx, "SELECT count(*) FROM finance.categories WHERE user_id=$1", u.ID).Scan(&catCount)
 	pool.QueryRow(ctx, "SELECT count(*) FROM finance.accounts WHERE user_id=$1", u.ID).Scan(&accCount)
-	if catCount != 8 || accCount != 1 {
-		t.Fatalf("siembra incorrecta: categorías=%d (esperado 8), cuentas=%d (esperado 1)", catCount, accCount)
+	if catCount != 7 || accCount != 1 {
+		t.Fatalf("siembra incorrecta: categorías=%d (esperado 7), cuentas=%d (esperado 1)", catCount, accCount)
 	}
 }
 

@@ -10,11 +10,19 @@ import (
 )
 
 type DebtUseCase struct {
-	repo domain.DebtRepository
+	repo    domain.DebtRepository
+	txRepo  domain.TransactionRepository
+	catRepo domain.CategoryRepository
+	accRepo domain.AccountRepository
 }
 
-func NewDebtUseCase(repo domain.DebtRepository) *DebtUseCase {
-	return &DebtUseCase{repo: repo}
+func NewDebtUseCase(repo domain.DebtRepository, txRepo domain.TransactionRepository, catRepo domain.CategoryRepository, accRepo domain.AccountRepository) *DebtUseCase {
+	return &DebtUseCase{
+		repo:    repo,
+		txRepo:  txRepo,
+		catRepo: catRepo,
+		accRepo: accRepo,
+	}
 }
 
 func (uc *DebtUseCase) Create(ctx context.Context, userID int64, req domain.CreateDebtRequest) (*domain.Debt, error) {
@@ -168,7 +176,65 @@ func (uc *DebtUseCase) MarkPaid(ctx context.Context, userID int64, id int64) (*d
 	if d.IsPaid {
 		return d, nil // already paid
 	}
-	return uc.repo.MarkPaid(ctx, id)
+
+	updatedDebt, err := uc.repo.MarkPaid(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Determinar el tipo de transacción correspondiente
+	targetType := "expense" // Payable -> Pago es un egreso
+	if d.Direction == "receivable" {
+		targetType = "income" // Receivable -> Cobro es un ingreso
+	}
+
+	// Buscar las categorías del usuario para asignar una del tipo correspondiente
+	categories, err := uc.catRepo.FindAllByUser(ctx, userID, targetType, false)
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener categorías del usuario: %w", err)
+	}
+	if len(categories) == 0 {
+		return nil, fmt.Errorf("%w: no se encontró una categoría de tipo %s para registrar el pago", domain.ErrValidation, targetType)
+	}
+	catID := categories[0].ID
+
+	// Buscar la cuenta del usuario para asignar el pago
+	accounts, err := uc.accRepo.FindAllByUser(ctx, userID, false)
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener cuentas del usuario: %w", err)
+	}
+	if len(accounts) == 0 {
+		return nil, fmt.Errorf("%w: el usuario no tiene ninguna cuenta activa", domain.ErrValidation)
+	}
+	accID := accounts[0].ID
+
+	// Generar descripción descriptiva
+	desc := fmt.Sprintf("Pago de deuda: %s", d.PersonName)
+	if d.Direction == "payable" {
+		desc = fmt.Sprintf("Pago de deuda a: %s", d.PersonName)
+	}
+	if strings.TrimSpace(d.Description) != "" {
+		desc += fmt.Sprintf(" (%s)", d.Description)
+	}
+
+	// Crear el movimiento
+	txReq := domain.CreateTransactionRequest{
+		AccountID:   accID,
+		Amount:      d.Amount,
+		Type:        targetType,
+		CategoryID:  catID,
+		Currency:    d.Currency,
+		Description: desc,
+		InputInBs:   false,
+		DebtID:      &d.ID,
+	}
+
+	_, err = uc.txRepo.Create(ctx, userID, txReq, time.Now())
+	if err != nil {
+		return nil, fmt.Errorf("error al generar transacción de pago de deuda: %w", err)
+	}
+
+	return updatedDebt, nil
 }
 
 func (uc *DebtUseCase) MarkUnpaid(ctx context.Context, userID int64, id int64) (*domain.Debt, error) {
@@ -182,7 +248,19 @@ func (uc *DebtUseCase) MarkUnpaid(ctx context.Context, userID int64, id int64) (
 	if !d.IsPaid {
 		return d, nil // already unpaid
 	}
-	return uc.repo.MarkUnpaid(ctx, id)
+
+	updatedDebt, err := uc.repo.MarkUnpaid(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Eliminar transacciones vinculadas a esta deuda
+	err = uc.txRepo.DeleteByDebtID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error al eliminar transacciones vinculadas a la deuda: %w", err)
+	}
+
+	return updatedDebt, nil
 }
 
 func (uc *DebtUseCase) Delete(ctx context.Context, userID int64, id int64) error {
