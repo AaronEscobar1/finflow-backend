@@ -1,4 +1,4 @@
-CREATE TABLE security.system_configs (
+CREATE TABLE IF NOT EXISTS security.system_configs (
     key   TEXT PRIMARY KEY,
     value JSONB NOT NULL
 );
@@ -12,4 +12,5 @@ VALUES ('default_categories', '[
   { "name": "Salud",        "type": "expense", "icon_key": "health",    "color": "#EF4444" },
   { "name": "Transporte",   "type": "expense", "icon_key": "transport", "color": "#EAB308" },
   { "name": "Hogar",        "type": "expense", "icon_key": "home",      "color": "#A855F7" }
-]');
+]')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
