@@ -189,6 +189,37 @@ func (h *DebtHandler) HandleMarkPaid(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, r.Context(), "SUCCESS", "deuda marcada como pagada correctamente", debt)
 }
 
+// HandleMarkUnpaid marca una deuda como no pagada.
+// @Summary Revertir pago de deuda
+// @Description Marca una deuda como no pagada (is_paid: false, paid_at: null).
+// @Tags Debts
+// @Security BearerAuth
+// @Produce json
+// @Param id path int true "ID de la deuda"
+// @Success 200 {object} domain.Debt "Deuda marcada como no pagada correctamente"
+// @Router /api/v1/debts/{id}/unpay [post]
+func (h *DebtHandler) HandleMarkUnpaid(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		response.Error(w, r.Context(), http.StatusOK, "UNAUTHORIZED", "sesión no válida")
+		return
+	}
+
+	id, err := extractPathID(r, "id")
+	if err != nil {
+		response.Error(w, r.Context(), http.StatusOK, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	debt, err := h.uc.MarkUnpaid(r.Context(), userID, id)
+	if err != nil {
+		mapError(w, r, err)
+		return
+	}
+
+	response.Success(w, r.Context(), "SUCCESS", "deuda marcada como no pagada correctamente", debt)
+}
+
 // HandleDelete mueve una deuda a la papelera (soft delete).
 // @Summary Eliminar deuda (Lógico)
 // @Description Elimina de forma lógica una deuda (soft-delete).

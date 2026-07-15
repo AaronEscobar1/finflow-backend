@@ -15,6 +15,9 @@ type Transaction struct {
 	Currency    string     `json:"currency"`
 	Description string     `json:"description"`
 	Date        time.Time  `json:"date"`
+	InputInBs   bool       `json:"input_in_bs"`
+	RateType    *string    `json:"rate_type"`
+	RateValue   float64    `json:"rate_value"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
@@ -28,6 +31,9 @@ type CreateTransactionRequest struct {
 	Currency    string  `json:"currency"`
 	Description string  `json:"description"`
 	Date        string  `json:"date"` // RFC3339 format
+	InputInBs   bool    `json:"input_in_bs"`
+	RateType    *string `json:"rate_type"`
+	RateValue   float64 `json:"rate_value"`
 }
 
 type UpdateTransactionRequest struct {
@@ -38,6 +44,9 @@ type UpdateTransactionRequest struct {
 	Currency    *string  `json:"currency,omitempty"`
 	Description *string  `json:"description,omitempty"`
 	Date        *string  `json:"date,omitempty"`
+	InputInBs   *bool    `json:"input_in_bs,omitempty"`
+	RateType    *string  `json:"rate_type,omitempty"`
+	RateValue   *float64 `json:"rate_value,omitempty"`
 }
 
 type TransactionFilter struct {
@@ -67,6 +76,7 @@ type CategoryAnalytics struct {
 	Total         float64 `json:"total"`
 	Count         int     `json:"count"`
 	Percentage    float64 `json:"percentage"`
+	Type          string  `json:"type"`
 }
 
 type TransactionRepository interface {

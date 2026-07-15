@@ -48,6 +48,7 @@ type DebtRepository interface {
 	FindAllByUser(ctx context.Context, userID int64, direction *string, paid *bool, includeTrashed bool) ([]Debt, error)
 	Update(ctx context.Context, id int64, req UpdateDebtRequest, date *time.Time, dueDate *time.Time) (*Debt, error)
 	MarkPaid(ctx context.Context, id int64) (*Debt, error)
+	MarkUnpaid(ctx context.Context, id int64) (*Debt, error)
 	SoftDelete(ctx context.Context, id int64) error
 	Restore(ctx context.Context, id int64) error
 	PermanentDelete(ctx context.Context, id int64) error

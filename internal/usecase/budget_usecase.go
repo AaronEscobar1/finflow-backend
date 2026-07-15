@@ -20,7 +20,7 @@ func NewBudgetUseCase(repo domain.BudgetRepository, catRepo domain.CategoryRepos
 	}
 }
 
-func (uc *BudgetUseCase) Create(ctx context.Context, userID int64, req domain.CreateBudgetRequest) (*domain.Budget, error) {
+func (uc *BudgetUseCase) Create(ctx context.Context, userID int64, req domain.CreateBudgetRequest) (*domain.BudgetWithSpent, error) {
 	if req.Amount <= 0 {
 		return nil, fmt.Errorf("%w: el monto del presupuesto debe ser mayor a 0", domain.ErrValidation)
 	}
@@ -47,7 +47,11 @@ func (uc *BudgetUseCase) Create(ctx context.Context, userID int64, req domain.Cr
 		req.CategoryID = nil
 	}
 
-	return uc.repo.Create(ctx, userID, req)
+	b, err := uc.repo.Create(ctx, userID, req)
+	if err != nil {
+		return nil, err
+	}
+	return uc.repo.FindWithSpentByID(ctx, b.ID)
 }
 
 func (uc *BudgetUseCase) GetByID(ctx context.Context, userID int64, id int64) (*domain.Budget, error) {
@@ -65,7 +69,7 @@ func (uc *BudgetUseCase) GetAll(ctx context.Context, userID int64, includeTrashe
 	return uc.repo.FindAllByUser(ctx, userID, includeTrashed)
 }
 
-func (uc *BudgetUseCase) Update(ctx context.Context, userID int64, id int64, req domain.UpdateBudgetRequest) (*domain.Budget, error) {
+func (uc *BudgetUseCase) Update(ctx context.Context, userID int64, id int64, req domain.UpdateBudgetRequest) (*domain.BudgetWithSpent, error) {
 	b, err := uc.GetByID(ctx, userID, id)
 	if err != nil {
 		return nil, err
@@ -108,7 +112,11 @@ func (uc *BudgetUseCase) Update(ctx context.Context, userID int64, id int64, req
 		}
 	}
 
-	return uc.repo.Update(ctx, id, req)
+	updated, err := uc.repo.Update(ctx, id, req)
+	if err != nil {
+		return nil, err
+	}
+	return uc.repo.FindWithSpentByID(ctx, updated.ID)
 }
 
 func (uc *BudgetUseCase) Delete(ctx context.Context, userID int64, id int64) error {

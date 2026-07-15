@@ -32,6 +32,9 @@ func (r *TransactionRepository) scanTransaction(row pgx.Row) (*domain.Transactio
 		&t.Currency,
 		&t.Description,
 		&t.Date,
+		&t.InputInBs,
+		&t.RateType,
+		&t.RateValue,
 		&t.CreatedAt,
 		&t.UpdatedAt,
 		&t.DeletedAt,
@@ -47,17 +50,17 @@ func (r *TransactionRepository) scanTransaction(row pgx.Row) (*domain.Transactio
 
 func (r *TransactionRepository) Create(ctx context.Context, userID int64, req domain.CreateTransactionRequest, date time.Time) (*domain.Transaction, error) {
 	const q = `
-		INSERT INTO finance.transactions (user_id, account_id, amount, type, category_id, currency, description, date)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, user_id, account_id, amount, type, category_id, currency, description, date, created_at, updated_at, deleted_at`
+		INSERT INTO finance.transactions (user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, created_at, updated_at, deleted_at`
 	return r.scanTransaction(r.pool.QueryRow(ctx, q,
-		userID, req.AccountID, req.Amount, req.Type, req.CategoryID, req.Currency, req.Description, date,
+		userID, req.AccountID, req.Amount, req.Type, req.CategoryID, req.Currency, req.Description, date, req.InputInBs, req.RateType, req.RateValue,
 	))
 }
 
 func (r *TransactionRepository) FindByID(ctx context.Context, id int64) (*domain.Transaction, error) {
 	const q = `
-		SELECT id, user_id, account_id, amount, type, category_id, currency, description, date, created_at, updated_at, deleted_at
+		SELECT id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, created_at, updated_at, deleted_at
 		FROM finance.transactions
 		WHERE id = $1`
 	return r.scanTransaction(r.pool.QueryRow(ctx, q, id))
@@ -124,7 +127,7 @@ func (r *TransactionRepository) FindByUser(ctx context.Context, userID int64, fi
 	}
 
 	q := fmt.Sprintf(`
-		SELECT id, user_id, account_id, amount, type, category_id, currency, description, date, created_at, updated_at, deleted_at
+		SELECT id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, created_at, updated_at, deleted_at
 		FROM finance.transactions
 		WHERE %s
 		ORDER BY date DESC, created_at DESC%s`, whereClause, limitOffset)
@@ -191,6 +194,21 @@ func (r *TransactionRepository) Update(ctx context.Context, id int64, req domain
 		args = append(args, *date)
 		idx++
 	}
+	if req.InputInBs != nil {
+		sets = append(sets, fmt.Sprintf("input_in_bs = $%d", idx))
+		args = append(args, *req.InputInBs)
+		idx++
+	}
+	if req.RateType != nil {
+		sets = append(sets, fmt.Sprintf("rate_type = $%d", idx))
+		args = append(args, *req.RateType)
+		idx++
+	}
+	if req.RateValue != nil {
+		sets = append(sets, fmt.Sprintf("rate_value = $%d", idx))
+		args = append(args, *req.RateValue)
+		idx++
+	}
 
 	if len(sets) == 0 {
 		return r.FindByID(ctx, id)
@@ -201,7 +219,7 @@ func (r *TransactionRepository) Update(ctx context.Context, id int64, req domain
 		UPDATE finance.transactions
 		SET %s
 		WHERE id = $%d AND deleted_at IS NULL
-		RETURNING id, user_id, account_id, amount, type, category_id, currency, description, date, created_at, updated_at, deleted_at`,
+		RETURNING id, user_id, account_id, amount, type, category_id, currency, description, date, input_in_bs, rate_type, rate_value, created_at, updated_at, deleted_at`,
 		strings.Join(sets, ", "), idx)
 
 	return r.scanTransaction(r.pool.QueryRow(ctx, q, args...))
@@ -339,11 +357,12 @@ func (r *TransactionRepository) GetByCategory(ctx context.Context, userID int64,
 			c.color,
 			c.icon_key,
 			SUM(t.amount) as total,
-			COUNT(*) as count
+			COUNT(*) as count,
+			c.type
 		FROM finance.transactions t
 		JOIN finance.categories c ON t.category_id = c.id
 		WHERE %s
-		GROUP BY t.category_id, c.name, c.color, c.icon_key
+		GROUP BY t.category_id, c.name, c.color, c.icon_key, c.type
 		ORDER BY total DESC`, whereClause)
 
 	rows, err := r.pool.Query(ctx, q, args...)
@@ -362,6 +381,7 @@ func (r *TransactionRepository) GetByCategory(ctx context.Context, userID int64,
 			&a.CategoryIcon,
 			&a.Total,
 			&a.Count,
+			&a.Type,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error al escanear analítica de categoría: %w", err)

@@ -26,7 +26,7 @@ func NewBudgetHandler(uc *usecase.BudgetUseCase) *BudgetHandler {
 // @Accept json
 // @Produce json
 // @Param body body domain.CreateBudgetRequest true "Datos del presupuesto"
-// @Success 200 {object} domain.Budget "Presupuesto creado correctamente"
+// @Success 200 {object} domain.BudgetWithSpent "Presupuesto creado correctamente"
 // @Router /api/v1/budgets [post]
 func (h *BudgetHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
@@ -93,7 +93,7 @@ func (h *BudgetHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path int true "ID del presupuesto"
 // @Param body body domain.UpdateBudgetRequest true "Datos a actualizar"
-// @Success 200 {object} domain.Budget "Presupuesto actualizado correctamente"
+// @Success 200 {object} domain.BudgetWithSpent "Presupuesto actualizado correctamente"
 // @Router /api/v1/budgets/{id} [put]
 func (h *BudgetHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserIDFromContext(r.Context())

@@ -43,6 +43,7 @@ type UpdateBudgetRequest struct {
 type BudgetRepository interface {
 	Create(ctx context.Context, userID int64, req CreateBudgetRequest) (*Budget, error)
 	FindByID(ctx context.Context, id int64) (*Budget, error)
+	FindWithSpentByID(ctx context.Context, id int64) (*BudgetWithSpent, error)
 	FindAllByUser(ctx context.Context, userID int64, includeTrashed bool) ([]BudgetWithSpent, error)
 	Update(ctx context.Context, id int64, req UpdateBudgetRequest) (*Budget, error)
 	SoftDelete(ctx context.Context, id int64) error

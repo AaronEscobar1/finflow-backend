@@ -38,6 +38,14 @@ func (uc *TransactionUseCase) Create(ctx context.Context, userID int64, req doma
 		req.Currency = "USD"
 	}
 
+	if req.AccountID == 0 {
+		accounts, err := uc.accRepo.FindAllByUser(ctx, userID, false)
+		if err != nil || len(accounts) == 0 {
+			return nil, fmt.Errorf("%w: el usuario no tiene ninguna cuenta activa", domain.ErrValidation)
+		}
+		req.AccountID = accounts[0].ID
+	}
+
 	// Verify account belongs to user
 	acc, err := uc.accRepo.FindByID(ctx, req.AccountID)
 	if err != nil {
@@ -89,7 +97,16 @@ func (uc *TransactionUseCase) GetByID(ctx context.Context, userID int64, id int6
 	return tx, nil
 }
 
+func adjustToTime(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	adjusted := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 999999999, t.Location())
+	return &adjusted
+}
+
 func (uc *TransactionUseCase) GetAll(ctx context.Context, userID int64, filter domain.TransactionFilter) ([]domain.Transaction, error) {
+	filter.To = adjustToTime(filter.To)
 	return uc.repo.FindByUser(ctx, userID, filter)
 }
 
@@ -105,6 +122,15 @@ func (uc *TransactionUseCase) Update(ctx context.Context, userID int64, id int64
 
 	if req.Amount != nil && *req.Amount <= 0 {
 		return nil, fmt.Errorf("%w: el monto debe ser mayor a 0", domain.ErrValidation)
+	}
+
+	if req.AccountID != nil && *req.AccountID == 0 {
+		accounts, err := uc.accRepo.FindAllByUser(ctx, userID, false)
+		if err != nil || len(accounts) == 0 {
+			return nil, fmt.Errorf("%w: el usuario no tiene ninguna cuenta activa", domain.ErrValidation)
+		}
+		idVal := accounts[0].ID
+		req.AccountID = &idVal
 	}
 
 	txType := tx.Type
@@ -200,7 +226,7 @@ func (uc *TransactionUseCase) PermanentDelete(ctx context.Context, userID int64,
 }
 
 func (uc *TransactionUseCase) GetSummary(ctx context.Context, userID int64, from, to *time.Time) (*domain.TransactionSummary, error) {
-	return uc.repo.GetSummary(ctx, userID, from, to)
+	return uc.repo.GetSummary(ctx, userID, from, adjustToTime(to))
 }
 
 func (uc *TransactionUseCase) GetByCategory(ctx context.Context, userID int64, from, to *time.Time, txType *string) ([]domain.CategoryAnalytics, error) {
@@ -215,5 +241,5 @@ func (uc *TransactionUseCase) GetByCategory(ctx context.Context, userID int64, f
 			txType = nil
 		}
 	}
-	return uc.repo.GetByCategory(ctx, userID, from, to, txType)
+	return uc.repo.GetByCategory(ctx, userID, from, adjustToTime(to), txType)
 }

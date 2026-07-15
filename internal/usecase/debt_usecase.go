@@ -171,6 +171,20 @@ func (uc *DebtUseCase) MarkPaid(ctx context.Context, userID int64, id int64) (*d
 	return uc.repo.MarkPaid(ctx, id)
 }
 
+func (uc *DebtUseCase) MarkUnpaid(ctx context.Context, userID int64, id int64) (*domain.Debt, error) {
+	d, err := uc.GetByID(ctx, userID, id)
+	if err != nil {
+		return nil, err
+	}
+	if d.DeletedAt != nil {
+		return nil, fmt.Errorf("%w: no se puede revertir el pago de una deuda eliminada", domain.ErrConflict)
+	}
+	if !d.IsPaid {
+		return d, nil // already unpaid
+	}
+	return uc.repo.MarkUnpaid(ctx, id)
+}
+
 func (uc *DebtUseCase) Delete(ctx context.Context, userID int64, id int64) error {
 	_, err := uc.GetByID(ctx, userID, id)
 	if err != nil {

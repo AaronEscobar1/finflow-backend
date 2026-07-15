@@ -194,6 +194,15 @@ func (r *DebtRepository) MarkPaid(ctx context.Context, id int64) (*domain.Debt, 
 	return r.scanDebt(r.pool.QueryRow(ctx, q, id))
 }
 
+func (r *DebtRepository) MarkUnpaid(ctx context.Context, id int64) (*domain.Debt, error) {
+	const q = `
+		UPDATE finance.debts
+		SET is_paid = false, paid_at = NULL
+		WHERE id = $1 AND deleted_at IS NULL AND is_paid = true
+		RETURNING id, user_id, amount, direction, person_name, description, currency, date, due_date, is_paid, paid_at, created_at, updated_at, deleted_at`
+	return r.scanDebt(r.pool.QueryRow(ctx, q, id))
+}
+
 func (r *DebtRepository) SoftDelete(ctx context.Context, id int64) error {
 	const q = `
 		UPDATE finance.debts

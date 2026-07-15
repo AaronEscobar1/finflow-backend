@@ -93,6 +93,31 @@ func (r *BudgetRepository) FindByID(ctx context.Context, id int64) (*domain.Budg
 	return r.scanBudget(r.pool.QueryRow(ctx, q, id))
 }
 
+func (r *BudgetRepository) FindWithSpentByID(ctx context.Context, id int64) (*domain.BudgetWithSpent, error) {
+	const q = `
+		SELECT
+			b.id, b.user_id, b.category_id, b.amount, b.period, b.currency, b.created_at, b.updated_at, b.deleted_at,
+			c.name as category_name, c.color as category_color, c.icon_key as category_icon,
+			COALESCE((
+				SELECT SUM(t.amount)
+				FROM finance.transactions t
+				WHERE t.user_id = b.user_id
+				  AND t.type = 'expense'
+				  AND t.deleted_at IS NULL
+				  AND (b.category_id IS NULL OR t.category_id = b.category_id)
+				  AND t.date >= CASE b.period
+					  WHEN 'weekly' THEN now() - interval '7 days'
+					  WHEN 'monthly' THEN date_trunc('month', now())
+					  WHEN 'yearly' THEN date_trunc('year', now())
+					  ELSE now() - interval '30 days'
+				  END
+			), 0) as spent
+		FROM finance.budgets b
+		LEFT JOIN finance.categories c ON b.category_id = c.id
+		WHERE b.id = $1 AND b.deleted_at IS NULL`
+	return r.scanBudgetWithSpent(r.pool.QueryRow(ctx, q, id))
+}
+
 func (r *BudgetRepository) FindAllByUser(ctx context.Context, userID int64, includeTrashed bool) ([]domain.BudgetWithSpent, error) {
 	var q string
 	if includeTrashed {

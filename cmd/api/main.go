@@ -180,18 +180,30 @@ func main() {
 	resetRL := middleware.RateLimit(rlMax, rlWindow)
 	googleRL := middleware.RateLimit(rlMax, rlWindow)
 
-	// Rutas públicas de autenticación.
+	// Rutas públicas de autenticación (soportando ambos prefijos /api/auth y /api/v1/auth).
 	mux.HandleFunc("GET /api/auth/public-key", authHandler.HandlePublicKey)
+	mux.HandleFunc("GET /api/v1/auth/public-key", authHandler.HandlePublicKey)
+
 	mux.Handle("POST /api/auth/register", registerRL(http.HandlerFunc(authHandler.HandleRegister)))
+	mux.Handle("POST /api/v1/auth/register", registerRL(http.HandlerFunc(authHandler.HandleRegister)))
+
 	mux.Handle("POST /api/auth/login", loginRL(http.HandlerFunc(authHandler.HandleLogin)))
+	mux.Handle("POST /api/v1/auth/login", loginRL(http.HandlerFunc(authHandler.HandleLogin)))
+
+	mux.Handle("POST /api/auth/otp/request", otpRL(http.HandlerFunc(authHandler.HandleRequestOTP)))
 	mux.Handle("POST /api/v1/auth/otp/request", otpRL(http.HandlerFunc(authHandler.HandleRequestOTP)))
+
+	mux.Handle("POST /api/auth/password/reset", resetRL(http.HandlerFunc(authHandler.HandleResetPassword)))
 	mux.Handle("POST /api/v1/auth/password/reset", resetRL(http.HandlerFunc(authHandler.HandleResetPassword)))
+
 	mux.Handle("POST /api/auth/google", googleRL(http.HandlerFunc(authHandler.HandleGoogleLogin)))
+	mux.Handle("POST /api/v1/auth/google", googleRL(http.HandlerFunc(authHandler.HandleGoogleLogin)))
 
 	// Rutas protegidas (JWT + sesión).
 	auth := middleware.AuthMiddleware(jwtSecret)
 	mux.Handle("GET /api/v1/me", auth(http.HandlerFunc(authHandler.HandleGetProfile)))
 	mux.Handle("PUT /api/v1/me", auth(http.HandlerFunc(authHandler.HandleUpdateProfile)))
+	mux.Handle("POST /api/auth/logout", auth(http.HandlerFunc(authHandler.HandleLogout)))
 	mux.Handle("POST /api/v1/auth/logout", auth(http.HandlerFunc(authHandler.HandleLogout)))
 
 	// --- Cuentas (Accounts) ---
@@ -228,6 +240,7 @@ func main() {
 	mux.Handle("GET /api/v1/debts/{id}", auth(http.HandlerFunc(debtHandler.HandleGet)))
 	mux.Handle("PUT /api/v1/debts/{id}", auth(http.HandlerFunc(debtHandler.HandleUpdate)))
 	mux.Handle("POST /api/v1/debts/{id}/pay", auth(http.HandlerFunc(debtHandler.HandleMarkPaid)))
+	mux.Handle("POST /api/v1/debts/{id}/unpay", auth(http.HandlerFunc(debtHandler.HandleMarkUnpaid)))
 	mux.Handle("DELETE /api/v1/debts/{id}", auth(http.HandlerFunc(debtHandler.HandleDelete)))
 	mux.Handle("POST /api/v1/debts/{id}/restore", auth(http.HandlerFunc(debtHandler.HandleRestore)))
 	mux.Handle("DELETE /api/v1/debts/{id}/permanent", auth(http.HandlerFunc(debtHandler.HandlePermanentDelete)))
