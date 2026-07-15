@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS security.system_configs;
+DROP TABLE IF EXISTS finance.system_configs;
