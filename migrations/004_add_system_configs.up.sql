@@ -1,9 +1,11 @@
-CREATE TABLE IF NOT EXISTS finance.system_configs (
+CREATE SCHEMA IF NOT EXISTS config;
+
+CREATE TABLE IF NOT EXISTS config.system_configs (
     key   TEXT PRIMARY KEY,
     value JSONB NOT NULL
 );
 
-INSERT INTO finance.system_configs (key, value)
+INSERT INTO config.system_configs (key, value)
 VALUES ('default_categories', '[
   { "name": "Salario",      "type": "income",  "icon_key": "salary",    "color": "#16A34A" },
   { "name": "Ventas",       "type": "income",  "icon_key": "sales",     "color": "#0EA5E9" },

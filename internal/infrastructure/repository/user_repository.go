@@ -111,16 +111,16 @@ type categoryConfig struct {
 func seedDefaultsTx(ctx context.Context, tx pgx.Tx, userID int64, currency string) error {
 	var categories []categoryConfig
 
-	// Intentar leer de finance.system_configs
+	// Intentar leer de config.system_configs
 	var configJSON []byte
-	err := tx.QueryRow(ctx, "SELECT value FROM finance.system_configs WHERE key = 'default_categories'").Scan(&configJSON)
+	err := tx.QueryRow(ctx, "SELECT value FROM config.system_configs WHERE key = 'default_categories'").Scan(&configJSON)
 	if err == nil {
 		if errUnmarshal := json.Unmarshal(configJSON, &categories); errUnmarshal != nil {
 			slog.Warn("No se pudo deserializar JSON de categorías por defecto de la base de datos, usando fallback", "error", errUnmarshal)
 			categories = nil
 		}
 	} else {
-		slog.Warn("No se pudo leer la tabla finance.system_configs para categorías, usando fallback", "error", err)
+		slog.Warn("No se pudo leer la tabla config.system_configs para categorías, usando fallback", "error", err)
 	}
 
 	// Fallback si falló la base de datos o el unmarshal
